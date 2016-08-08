@@ -1,0 +1,150 @@
+{%
+import json
+swagger = json.loads(pte_readfile(ENV['swagger_file']))
+pte_include("./swagger.py")
+%}
+
+using System.Collections.Generic;
+using nsoftware.InAPI;
+using System;
+
+
+namespace nsoftware.InAPI {
+  public class UberAPIException : Exception {
+    public UberAPIException() {}
+    public UberAPIException(string message) : base(message) {}
+  }
+  public class {{class_name}} {
+    public const string SWAGGER           = "{{swagger.swagger}}";
+    public const string INFO_DESCRIPTION  = "{{swagger.info.description}}";
+    public const string INFO_VERSION      = "{{swagger.info.version}}";
+    public const string INFO_TITLE        = "{{swagger.info.title}}";
+    public const string HOST              = "{{swagger.host}}"; // TBD. maybe empty or contains port
+    public const string BASEPATH          = "{{swagger.basePath}}";
+    public static readonly string[] SCHEMES  = new string[] { {{swagger.schemes|pte_str(self)|','.join(self)}} };
+    public static readonly string[] PRODUCES = new string[] { {{swagger.produces|pte_str(self)|','.join(self)}} };
+
+    private string _scheme = SCHEMES[0];
+    public string Scheme {
+      get { return _scheme;  }
+      set {
+        for (int i = 0; i < SCHEMES.Length; i++) { 
+          if (SCHEMES[i].Equals(value)) {
+            _scheme = value;
+            return;
+          }
+        }
+        throw new UberAPIException("Invalid scheme value \"" + value + "\"");
+      }
+    }
+
+    private string _produce = PRODUCES[0];
+    public string Produce {
+      get { return _produce; }
+      set {
+        for (int i = 0; i < PRODUCES.Length; i++) {
+          if (PRODUCES[i].Equals(value)) {
+            _produce = value;
+            return;
+          }
+        }
+        throw new UberAPIException("Invalid produce value \"" + value + "\"");
+      }
+    }
+
+    private Apiclient apiclient = null;
+
+    {%for (path, path_val) in swagger["paths"].items()%}
+    {%for (mtd, mtd_val) in path_val.items()%}
+    public object {{mtd + path|self.replace("/", "_")}}({{mtd_val['parameters']|swagger_method_params(self)|','.join(self)}}) {
+      initApiclient("{{mtd}}", "{{path}}");
+      // If OAuth is necessary, uncomment following method
+      // initApiclientOAuth();
+      {%for param in mtd_val["parameters"]%}
+      apiclient.QueryParameters.Add(new HTTPQueryParameter("{{param['name']}}", {{swagger_param_str(param)}}));
+      {%endfor%}
+      apiclient.SendRequest();
+      {%for (code, code_val) in mtd_val["responses"].items() %}
+      {%if code != 'default'%}
+      if (apiclient.StatusCode.ToString().Equals("{{code}}")) {
+        return {{code_val|swagger_response_obj(self)}};
+      }  
+      {%endif%}
+      {%endfor%}
+      return {{mtd_val["responses"]["default"]|swagger_response_obj(self)}};
+    }
+    
+    {%endfor%}
+    {%endfor%}
+    
+    private void initApiclient(string httpMethod, string path) {
+      if (apiclient == null) apiclient = new Apiclient();
+      else apiclient.Reset();
+
+      //apiclient.Headers.Add(new Header("Authorization", "Token XXXXXXXXXXXXXXXXXXXXXXXX")); // Uber server_token
+      apiclient.HTTPMethod = httpMethod.ToUpper();
+      apiclient.URLScheme = Scheme.ToUpper();
+      apiclient.URLServer = HOST;
+      apiclient.URLPath = BASEPATH + path;
+    
+    }
+    private void initApiclientOAuth() {
+      apiclient.OAuthClientId = "XXXXXXXXXXXXXXXXXXXXX";   // Uber ClientId
+      apiclient.OAuthClientSecret = "XXXXXXXXXXXXXXXXXXXXXX"; // Uber ClientSecret.
+      apiclient.OAuthServerAuthURL = "https://login.uber.com/oauth/v2/authorize";
+      apiclient.OAuthServerTokenURL = "https://login.uber.com/oauth/v2/token";
+      apiclient.OAuthAuthorizationScope = "profile history"; // For Uber.
+      apiclient.Config("OAuthWebServerPort=3000"); // This is configed in developer account of Uber.
+      for (int i = 0; i < apiclient.Headers.Count; i++) {
+        if (apiclient.Headers[i].Field.ToUpper().Equals("AUTHORIZATION")) {
+          apiclient.Headers.RemoveAt(i);
+          break;
+        }
+      }
+    }
+  }  
+  
+
+  {%for (model, model_val) in swagger["definitions"].items()%}
+  public class {{model}} {
+    {%for (prop, prop_val) in model_val["properties"].items()%}
+    {%prop_info = swagger_type_info(prop_val, "cs")%}
+    private {{prop_info.type}} _{{prop}};
+    public {{prop_info.type}} {{prop}} {
+      get { return _{{prop}}; }
+      set { _{{prop}} = value; }
+    }
+    {%endfor%}
+    public static {{model}} FromApiclient(Apiclient client, String basePath) {
+      {{model}} ret = new {{model}}();
+      client.XPath = basePath;
+      for (int i = 0; i < client.XChildren.Count; i++) {
+        JSONElement element = client.XChildren[i];
+        switch (element.Name) {
+          {%for (prop, prop_val) in model_val["properties"].items()%}
+          {%prop_info = swagger_type_info(prop_val, "cs")%}
+          case "{{prop}}":
+            {%if prop_info['is_array'] == 'false'%}
+            ret.{{prop}} = {{prop_info.type_cast}}(element.XText);
+            {%else%}
+            ret.{{prop}} = {{prop_info.item_type}}.ArrayFromApiclient(client, basePath + "/{{prop}}");
+            {%endif%}
+            break;
+          {%endfor%}
+        }
+      }
+      return ret;
+    }
+    public static List<{{model}}> ArrayFromApiclient(Apiclient client, String basePath) {
+      List<{{model}}> ret = new List<{{model}}>();
+      client.XPath = basePath;
+      int count = client.XChildren.Count;
+      for (int i = 0; i < count; i++) {
+        ret.Add(FromApiclient(client, basePath + "/[" + (i + 1) + "]"));
+      }
+      return ret;
+    }
+  }
+  {%endfor%}  
+
+}

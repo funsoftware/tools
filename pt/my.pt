@@ -1,0 +1,8 @@
+
+{% for i in range(0, 100)%}
+{{i+1}}{%%}
+{%if i != 99%}, {%endif%}
+{%if (i+1) % 10 == 0%}
+
+{%endif%}
+{%endfor%}
