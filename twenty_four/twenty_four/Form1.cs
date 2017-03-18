@@ -15,9 +15,15 @@ namespace twenty_four {
      
     }
 
-    private bool calc(int[] nums, ref string expr, ref double val, ref int state) {
+    private String twenty_four(int[] nums) {
+      String expr = "";
+      double val = 0;
+      int state = -1;
+      return calc(nums, 24.00000f, ref expr, ref val, ref state) ? expr : "";
+    }
+    private bool calc(int[] nums, double result, ref string expr, ref double val, ref int state) {
       if (nums.Length == 0) {
-        return val == 24.000000000000f;
+        return val == result;
       }
       for (int i = 0; i < nums.Length; i++) {
         int num = nums[i];
@@ -31,26 +37,26 @@ namespace twenty_four {
           newExpr = num.ToString();
           newVal = num;
           newState = 0;
-          if (calc(newNums, ref newExpr, ref newVal, ref newState)) {
+          if (calc(newNums, result, ref newExpr, ref newVal, ref newState)) {
             expr = newExpr;
             val = newVal;
             return true;
           }
         } else {
 
-          newExpr = expr + "-" + num;
-          newVal = val - num;
+          newExpr = num + "+" + expr;
+          newVal = num + val;
           newState = 1;
-          if (calc(newNums, ref newExpr, ref newVal, ref newState)) {
+          if (calc(newNums, result, ref newExpr, ref newVal, ref newState)) {
             expr = newExpr;
             val = newVal;
             return true;
           }
 
-          newExpr = num + "+" + expr;
-          newVal = num + val;
+          newExpr = expr + "-" + num;
+          newVal = val - num;
           newState = 1;
-          if (calc(newNums, ref newExpr, ref newVal, ref newState)) {
+          if (calc(newNums, result, ref newExpr, ref newVal, ref newState)) {
             expr = newExpr;
             val = newVal;
             return true;
@@ -59,7 +65,7 @@ namespace twenty_four {
           newExpr = num + "-" + (state == 1 ? "(" + expr + ")" : expr);
           newVal = num - val;
           newState = 1;
-          if (calc(newNums, ref newExpr, ref newVal, ref newState)) {
+          if (calc(newNums, result, ref newExpr, ref newVal, ref newState)) {
             expr = newExpr;
             val = newVal;
             return true;
@@ -68,7 +74,7 @@ namespace twenty_four {
           newExpr = (state == 1? "(" + expr + ")" : expr) + "*" + num;
           newVal = val * num;
           newState = 2;
-          if (calc(newNums, ref newExpr, ref newVal, ref newState)) {
+          if (calc(newNums, result, ref newExpr, ref newVal, ref newState)) {
             expr = newExpr;
             val = newVal;
             return true;
@@ -77,7 +83,7 @@ namespace twenty_four {
           newExpr = (state == 1 ? "(" + expr + ")" : expr) + "/" + num;
           newVal = val / num;
           newState = 2;
-          if (calc(newNums, ref newExpr, ref newVal, ref newState)) {
+          if (calc(newNums, result, ref newExpr, ref newVal, ref newState)) {
             expr = newExpr;
             val = newVal;
             return true;
@@ -86,7 +92,7 @@ namespace twenty_four {
           newExpr = num + "/" + (state >= 1 ? "(" + expr + ")" : expr);
           newVal = num / val;
           newState = 2;
-          if (calc(newNums, ref newExpr, ref newVal, ref newState)) {
+          if (calc(newNums, result, ref newExpr, ref newVal, ref newState)) {
             expr = newExpr;
             val = newVal;
             return true;
@@ -106,31 +112,17 @@ namespace twenty_four {
         int b = int.Parse(txtB.Text);
         int c = int.Parse(txtC.Text);
         int d = int.Parse(txtD.Text);
-        checkNum(a);
-        checkNum(b);
-        checkNum(c);
-        checkNum(d);
-        String expr = "";
-        double val = 0;
-        int state = -1;
-        this.Cursor = Cursors.WaitCursor;
-        bool m = calc(new int[] {a, b, c, d}, ref expr, ref val, ref state);
+        if (a < 1 || a >13 ||
+          b < 1 || b >13 ||
+          c < 1 || c >13 ||
+          d < 1 || d >13 ) throw new Exception("Number must be 1~13");
 
-        if (m) lblResult.Text = expr;
-        else lblResult.Text = "No Result";
+        lblResult.Text = twenty_four(new int[] {a, b, c, d});
+        if (String.IsNullOrEmpty(lblResult.Text)) lblResult.Text = "No Result";
       } catch (Exception ex) {
         lblResult.Text = ex.Message;
       }
       this.Cursor = Cursors.Default;
     }
-    private void checkNum(int num) {
-      if (num < 1 || num >13) throw new Exception("Number must be 1~13");
-    }
-
-    private void mainForm_Load(object sender, EventArgs e) {
-      lblResult.Text = "";
-    }
-
-
   }
 }

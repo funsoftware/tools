@@ -78,9 +78,9 @@
       this.lblResult.AutoSize = true;
       this.lblResult.Location = new System.Drawing.Point(56, 76);
       this.lblResult.Name = "lblResult";
-      this.lblResult.Size = new System.Drawing.Size(25, 13);
+      this.lblResult.Size = new System.Drawing.Size(54, 13);
       this.lblResult.TabIndex = 6;
-      this.lblResult.Text = "abc";
+      this.lblResult.Text = "No Result";
       // 
       // label2
       // 
@@ -105,7 +105,6 @@
       this.Controls.Add(this.txtC);
       this.Name = "mainForm";
       this.Text = "twenty four";
-      this.Load += new System.EventHandler(this.mainForm_Load);
       this.ResumeLayout(false);
       this.PerformLayout();
 
